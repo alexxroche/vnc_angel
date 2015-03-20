@@ -6,11 +6,11 @@
 
 =head1 VERSION
 
-    0.01
+    0.02
 
 =cut
 
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 =head1 DESCRIPTION
 
@@ -115,11 +115,12 @@ my $user = 'alexx';
 # the far end of the SSH tunnel
 my $gw = '192.0.2.2';
 my $server = 'ns0';
-# ssh known_hosts for security
-my $known_hosts='~/.bigv/default/known_hosts';
-if($known_hosts=~m/^~/){
-    $known_hosts=~s/^~/$home/;
-}
+
+####### Hopefully that is all you need to set ###########
+
+# the next two lines are used to place the mouse pointer like the hour-hand of a clock
+my $pi = 4*atan2(1,1);
+sub deg_to_rad { ($_[0]/180) * $pi }
 
 for(my $args=0;$args<=(@ARGV -1);$args++){
     if ($ARGV[$args]=~m/^-+h/i){ &help; }
@@ -147,11 +148,17 @@ my $local_port = 18865;
 if($opt{local_port}){ $local_port=$opt{local_port}; }
 my $home = `echo -n \$HOME`;
 if($home!~m/home/){ $home = '/home/' . $user; }
+# ssh known_hosts for security
+my $known_hosts='~/.bigv/default/known_hosts';
+if($known_hosts=~m/^~/){
+    $known_hosts=~s/^~/$home/;
+}
 # where we host the RSA PRIVATE key for the ssh tunnel
 my $vnc_rsa = '~/.ssh/vnc_angel_rsa';
 if($vnc_rsa=~m/^~/){
     $vnc_rsa=~s/^~/$home/;
 }
+
 # the VNC port at the other end
 my $port = 5900;
 if($opt{port}){ $port=$opt{port}; }
@@ -426,9 +433,16 @@ $vnc->depth(24);
 $vnc->login;
 #mouse_move_to(right from the far left, down from the top); #i.e. 1,1 is top left
 # mouse_move_to($vnc->width/2, $vnc->height/2); # is the middle of the screen
-my $hour = `date +%H`; chomp($hour); $hour = ( $hour + 1 ) * 20;
-$vnc->mouse_move_to(256, $hour); #wake if idle (trying to get a smaller image) than 308979
-#$vnc->hide_cursor(1);
+my $x = $vnc->width || 1024;my $x_mid = $x/2;
+my $y = $vnc->height || 512;my $y_mid = $y/2;
+my $radius = 4 * ( $y_mid / $y ) * 100;
+# 30 degrees between the hours
+my $hour = `date +%H.%M%S`; chomp($hour);
+my $this_x = $x_mid + ( sin(&deg_to_rad( 30 * $hour * $radius ) ) );
+my $this_y = $y_mid + ( cos(&deg_to_rad( 30 * $hour * $radius ) ) );
+
+$vnc->mouse_move_to($this_x, $this_y); #wake if idle (trying to get a smaller image) than 308979
+#$vnc->hide_cursor(1); # we don't want this, as the cursor position tells us when this was captured
 my $capture = $vnc->capture;
 if($capture){
     my $old_caps = $file;
